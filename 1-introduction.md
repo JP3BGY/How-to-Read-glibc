@@ -1,4 +1,9 @@
 # 読み始める前に
+
+## このドキュメントの対象者
+
+このドキュメントではC言語の基本文法の理解し、gccやgdb、make(not Makefile)等のUNIX系の基礎的な開発環境の使い方を知っている人を対象としている。もし、わからない点やこのドキュメントの改善すべき点があればissueにて対応する。
+
 ## デバッガとデバッグシンボルのインストール
 Ubuntu
 ```
@@ -10,7 +15,22 @@ sudo dnf install gdb
 sudo dnf debuginfo-install glibc
 ```
 
+## GDB FrontEndについて
+
+ソースナビゲーションを使わずにGDBとデバッグシンボルのみでソースを読むことも可能である。その場合大抵のパッケージマネージャから入れるデバッグシンボルは```-g2```でコンパイルするのでプリプロセッサの一部の情報がなくなっている事があることに注意しよう。また、GDBのTUIを用いるのも悪くはないが外部のGDB FrontEndの方が視覚から入る情報量が多いため格段に読みやすくなる。なので、ここで少しおすすめのGDB FrontEndを紹介する。なお、もっと知りたい場合は[GDB Wiki](https://sourceware.org/gdb/wiki/GDB%20Front%20Ends)を参照してほしい。
+
+* [Eclipse CDT Standalone Debugger](https://wiki.eclipse.org/CDT/StandaloneDebugger)
+
+おそらく一番機能が充実していて、一番使いやすいであろうもの。Reverse Debugにも対応しているのでこだわりがなければこれを使うのが一番だと思われる。
+
+* cgdb
+
+vim likeなキーバインドのCUI FrontEnd。CUI&vimにこだわりがあるならこれがベストであろう。各自使用しているパッケージマネージャからインストールできるはずである。
+
 ## ソースコードナビゲーション
+
+ただ、grepとエディタを用いて読むのでは日が暮れてしまうのでここではソースコードナビゲーションシステムを用いてソースリーディングを行う。ここではwoboqかSourceWebかDXRを使っている前提で話を進めるがある程度自身があれば他のものを使っていても問題なく読み進められるだろう。
+
 * [woboq codebrowser](https://github.com/woboq/woboq_codebrowser/)
 
 Clangを用いたコードナビゲーションシステム。プリプロセッサもある程度補足してくれるらしく関数をすぐに見つけることができる。
