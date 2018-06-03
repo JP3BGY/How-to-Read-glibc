@@ -37,5 +37,5 @@ IDEも一種のナビゲーションシステムとしてソースリーディ�
 
 * [LXR](http://sourceforge.net/projects/lxr)
 * [OpenGrok](http://oracle.github.io/opengrok/)
-* [Gonzui](http://en.wikipedia.org/wiki/Gonzui)
+* [Gonzui](http://gonzui.sourceforge.net/)
 * [elixir](https://github.com/free-electrons/elixir)
