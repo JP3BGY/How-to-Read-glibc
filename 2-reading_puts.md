@@ -208,7 +208,7 @@ weak_alias (_IO_puts, puts)
 ```
 これで少しはわかりやすくなったかと思う。
 ひとつずつ見ていこう、まずexternは外部に宣言がされているという意味の修飾子だ。これは、関数の場合は意味をなさないが変数の場合は存在のみを定義して実態を作らないという意味を持つ。が、ここでは```aliasname```は```puts```、即ち関数なのでとりあえず無視しよう。
-次に```__typeof (name)```である。これは[typeof](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)演算子のaliasであろうというのは簡単に予測できる。
+次に```__typeof (name)```である。これは[typeof](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)演算子であろうというのは簡単に予測できる。
 最後が```__attribute__ ((weak, alias (#name)));```である。これは"alias gcc extension"等で検索すれば出てくるgccの拡張機能である[alias](https://gcc.gnu.org/onlinedocs/gcc-4.7.2/gcc/Function-Attributes.html)だ。簡単に言えば別名というわけだ。weakとあるのは同ページの下の方に記述があるが別で宣言があったら上書きできるという意味だ。つまりputs()という名前の別の関数をプログラムで定義しても問題なくコンパイルされ、かつputs()の呼び出し時はその新しく書いた方が使われるようになるわけだ。C言語では普通名前が衝突するとエラーが出るので普通の挙動ではないことがわかるだろう。``#name``の部分はその部分をそのまま文字列、即ち```"name"```にするという意味だ。こうする理由は上のリンクをよく見ればわかるが__attribute__に使う引数が文字列である必要があるからだ。
 結果として```weak_alias(_IO_puts,puts)```は以下のように展開される。
 ```C
