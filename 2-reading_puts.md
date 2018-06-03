@@ -239,7 +239,36 @@ _IO_puts (const char *str)
 
 一番最初につまずくのは1番の```_IO_acquire_lock``` ```_IO_release_lock```だと思う。これはマルチスレッドプログラミングで使われる[lock free](https://ja.wikipedia.org/wiki/Lock-free%E3%81%A8Wait-free%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0)と呼ばれるものだ。かいつまんで話すとマルチスレッドプログラミングをするときに同じリソースに対して違うスレッドが同時に使うという状況が起こることがある。それを単純に許してしまうと同時に別の値が上書きされたりして、結果挙動がおかしくなることがある。それを防ぐためにあるスレッドが使っている限りは別のスレッドからは使えないように鍵をかけ、使い終わったらそれを開放する、という意味でロックフリーというわけだ。この部分はこれ以上深くは追わないこととする。理由はwoboq等でマクロの展開結果を見ればわかるがとんでもない量のコードになっているからだ。ここはputs()の核心ではないのであまり時間をかけないためにとばすことにする。
 
-次に2番の部分だが、ここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
+次に2番の部分だが、結論からするとこの部分では何もしない、何もおこらないことに普通はなっている。
+どういうことか定義部分を見てみよう。
+```C
+/* Setting this macro to 1 enables the use of the _vtable_offset bias
+   in _IO_JUMPS_FUNCS, below.  This is only needed for new-format
+   _IO_FILE in libc that must support old binaries (see oldfileops.c).  */
+#if SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_1) && !defined _IO_USE_OLD_IO_FILE
+# define _IO_JUMPS_OFFSET 1
+#else
+# define _IO_JUMPS_OFFSET 0
+#endif
+
+// CUT
+
+#if _IO_JUMPS_OFFSET
+# define _IO_JUMPS_FUNC(THIS) \
+  (IO_validate_vtable                                                   \
+   (*(struct _IO_jump_t **) ((void *) &_IO_JUMPS_FILE_plus (THIS)        \
+                             + (THIS)->_vtable_offset)))
+# define _IO_vtable_offset(THIS) (THIS)->_vtable_offset
+#else
+# define _IO_JUMPS_FUNC(THIS) (IO_validate_vtable (_IO_JUMPS_FILE_plus (THIS)))
+# define _IO_vtable_offset(THIS) 0
+#endif
+```
+注目してほしいのが```_IO_JUMPS_OFFSET```の定義をしている上の部分のコメントである。単純に言えばold binary用だから今は使ってないということだ。
+ここでは具体的な言及は避けるが、実行ファイルにも新旧や種類や変更があっておそらくこれは昔の実行ファイルを使う場合に必要になるものなのだと推測できる。
+実際GDBでステップ実行をすると＿IO_vtable_offsetの部分はコンパイル時に評価がfalseであると予め計算されるため実行ファイル上ではなかったもの扱いになっている。
+
+次に3番だが、ここは2番とは違ってちゃんと使われているので、まずここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
 ```C
 struct _IO_FILE
 {
@@ -296,5 +325,12 @@ struct _IO_FILE_complete
 
 * list 
 
-アルゴリズムで使われる言葉で次のデータを指し示すポインタによって連結されたデータ構造のことである。
+アルゴリズムで使われる言葉で次のデータを指し示すポインタによって連結されたデータ構造のことである。chainもおそらく同じ意味で使われていると思われる。
 
+* buf
+
+今回の場合はおそらくlistと対照して普通のC言語の配列を意味するものだと思われる。
+
+で、このデータ構造で気になるのが```_IO_USE_OLD_IO_FILE```だが基本OLDと書かれているものは互換性のために残ってるだけで今のPCで使われることはないと推測して良い。なのでこの部分はないものとして考える。ほかはとりあえずは今はコメントと単語から推測できる程度がわかっていれば問題ない。
+
+話を戻して3番についてだが、
