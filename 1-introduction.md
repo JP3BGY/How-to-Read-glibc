@@ -38,7 +38,7 @@ Clangを用いたコードナビゲーションシステム。プリプロセッ
 
 * [SourceWeb](https://github.com/rprichard/sourceweb)
 
-Cmakeやmakeのコンパイルのコマンドをトレースしてコードを解析する少し変わったナビゲーションシステム。C/C++にしか対応していないがコンパイルの手順を一通り追うことでプリプロセッサ等の処理が可能であり、使わない部分と使う部分が明確にわかる・精度が非常に高い等多くの利点がある。・・・のだが、どうやらFedoraではうまくビルドが動かないようである。原因は[このあたり](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70936)で```-isystem```オプションが悪さしてstdlib.hを見えなくしているというものらしい。もしUbuntu等で動くのならばそれで良いのだが動かなければ早々に諦めたほうが良さそう。ちなみに私は```./build/clang-indexer```のMakefileの```-isystem /usr/include```を```-I/usr/include```に無理やり書き換えてビルドを通した。一応無事に動いてはいる。こちらもたまにリファレンスが効かないことがあるが、全体検索機能はないのでgrep等を用いることを推奨する。
+C/C++にしか対応していないがコンパイルの手順を一通り追うことでプリプロセッサ等の処理が可能であり、使わない部分と使う部分が明確にわかる・精度が非常に高い等多くの利点がある。・・・のだが、どうやらFedoraではうまくビルドが動かないようである。原因は[このあたり](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70936)で```-isystem```オプションが悪さしてstdlib.hを見えなくしているというものらしい。もしUbuntu等で動くのならばそれで良いのだが動かなければ早々に諦めたほうが良さそう。ちなみに私は```./build/clang-indexer```のMakefileの```-isystem /usr/include```を```-I/usr/include```に無理やり書き換えてビルドを通した。一応無事に動いてはいる。こちらもたまにリファレンスが効かないことがあるが、全体検索機能はないのでgrep等を用いることを推奨する。
 
 * [ctags](https://github.com/universal-ctags/ctags), [cscope](http://cscope.sourceforge.net/), [GNU global](https://www.gnu.org/software/global/)
 
