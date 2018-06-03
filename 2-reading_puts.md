@@ -216,3 +216,85 @@ extern __typeof (_IO_puts) puts __attribute__ ((weak, alias ("_IO_puts")));
 ```
 こうして、putsは_IO_putsのaliasであると定義されるわけだ。
 
+putsの謎が解けたところでその中身を読んでいこう。
+```C
+int
+_IO_puts (const char *str)
+{
+  int result = EOF;
+  size_t len = strlen (str);
+  _IO_acquire_lock (_IO_stdout); // 1
+
+  if ((_IO_vtable_offset (_IO_stdout) != 0 // 2
+       || _IO_fwide (_IO_stdout, -1) == -1) // 3
+      && _IO_sputn (_IO_stdout, str, len) == len // 4
+      && _IO_putc_unlocked ('\n', _IO_stdout) != EOF) // 4
+    result = MIN (INT_MAX, len + 1);
+
+  _IO_release_lock (_IO_stdout); // 1
+  return result;
+}
+```
+読みやすさのために番号を振った。
+
+一番最初につまずくのは1番の```_IO_acquire_lock``` ```_IO_release_lock```だと思う。これはマルチスレッドプログラミングで使われる[lock free](https://ja.wikipedia.org/wiki/Lock-free%E3%81%A8Wait-free%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0)と呼ばれるものだ。かいつまんで話すとマルチスレッドプログラミングをするときに同じリソースに対して違うスレッドが同時に使うという状況が起こることがある。それを単純に許してしまうと同時に別の値が上書きされたりして、結果挙動がおかしくなることがある。それを防ぐためにあるスレッドが使っている限りは別のスレッドからは使えないように鍵をかけ、使い終わったらそれを開放する、という意味でロックフリーというわけだ。この部分はこれ以上深くは追わないこととする。理由はwoboq等でマクロの展開結果を見ればわかるがとんでもない量のコードになっているからだ。ここはputs()の核心ではないのであまり時間をかけないためにとばすことにする。
+
+次に2番の部分だが、ここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
+```C
+struct _IO_FILE
+{
+  int _flags;                /* High-order word is _IO_MAGIC; rest is flags. */
+  /* The following pointers correspond to the C++ streambuf protocol. */
+  char *_IO_read_ptr;        /* Current read pointer */
+  char *_IO_read_end;        /* End of get area. */
+  char *_IO_read_base;        /* Start of putback+get area. */
+  char *_IO_write_base;        /* Start of put area. */
+  char *_IO_write_ptr;        /* Current put pointer. */
+  char *_IO_write_end;        /* End of put area. */
+  char *_IO_buf_base;        /* Start of reserve area. */
+  char *_IO_buf_end;        /* End of reserve area. */
+  /* The following fields are used to support backing up and undo. */
+  char *_IO_save_base; /* Pointer to start of non-current get area. */
+  char *_IO_backup_base;  /* Pointer to first valid character of backup area */
+  char *_IO_save_end; /* Pointer to end of non-current get area. */
+  struct _IO_marker *_markers;
+  struct _IO_FILE *_chain;
+  int _fileno;
+  int _flags2;
+  __off_t _old_offset; /* This used to be _offset but it's too small.  */
+  /* 1+column number of pbase(); 0 is unknown. */
+  unsigned short _cur_column;
+  signed char _vtable_offset;
+  char _shortbuf[1];
+  _IO_lock_t *_lock;
+#ifdef _IO_USE_OLD_IO_FILE
+};
+struct _IO_FILE_complete
+{
+  struct _IO_FILE _file;
+#endif
+  __off64_t _offset;
+  /* Wide character stream stuff.  */
+  struct _IO_codecvt *_codecvt;
+  struct _IO_wide_data *_wide_data;
+  struct _IO_FILE *_freeres_list;
+  void *_freeres_buf;
+  size_t __pad5;
+  int _mode;
+  /* Make sure we don't get into trouble again.  */
+  char _unused2[15 * sizeof (int) - 4 * sizeof (void *) - sizeof (size_t)];
+};
+```
+これまた長くて大変だが、すべてを理解する必要はない。とりあえずは名前から推測してみよう。その前にあまり知らないであろう単語の説明をする。
+* offset
+
+直訳すると「埋め合わせ・差引」だが、とりわけコンピュータ系では配列や構造体で始めから何バイト後ろにあるか、という意味で使われることが多い。
+
+* vtable
+
+省略された部分を書くと"vector table"で、コンピュータ系では関数ポインタの列(構造体)という意味になる。
+
+* list 
+
+アルゴリズムで使われる言葉で次のデータを指し示すポインタによって連結されたデータ構造のことである。
+
