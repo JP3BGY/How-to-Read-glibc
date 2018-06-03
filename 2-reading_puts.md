@@ -50,7 +50,9 @@ Makerules      config.h.in  elf             include         mach               o
 ここで注目してほしいのがファイルやディレクトリの名前である。見て分かる通りこれらの名前は変数名等と同じように意味を持つものになっている。
 例えば"assert"はC言語の標準ヘッダである"assert.h"関連の関数があるであろうと予測できるし、"time"も同様"time.h"関連であろうということが予測できる。
 また、わからないものは調べれば大抵はすぐに出てくる。例えば"elf"や"hurd"などは有名なのでこれらは問題なく出てくる。
-これで大まかにどこに何があるのかの見当がついた。それではここでputs()がどこにあるのかを予想してみよう。まず、puts()がおいてあるヘッダは"stdio.h"である。この名前から怪しそうなのは"stdio-common"と"libio"と"io"であろう。だが、現時点ではこれらの明確な差はわかっていないのでとりあえずそれぞれ何がはいっているのか```ls io libio stdio-common```で見てみよう。
+これで大まかにどこに何があるのかの見当がついた。
+
+それではここでputs()がどこにあるのかを予想してみよう。まず、puts()がおいてあるヘッダは"stdio.h"である。この名前から怪しそうなのは"stdio-common"と"libio"と"io"であろう。だが、現時点ではこれらの明確な差はわかっていないのでとりあえずそれぞれ何がはいっているのか```ls io libio stdio-common```で見てみよう。
 ```
 io:
 Makefile                  fchdir.c      ftwtest-sh    lxstat64.c         posix_fallocate64.c  tst-copy_file_range-compat.c  tst-renameat.c
