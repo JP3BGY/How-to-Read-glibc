@@ -333,4 +333,30 @@ struct _IO_FILE_complete
 
 で、このデータ構造で気になるのが```_IO_USE_OLD_IO_FILE```だが基本OLDと書かれているものは互換性のために残ってるだけで今のPCで使われることはないと推測して良い。なのでこの部分はないものとして考える。ほかはとりあえずは今はコメントと単語から推測できる程度がわかっていれば問題ない。
 
-話を戻して3番についてだが、
+話を戻して3番についてだが、とりあえず_IO_fwideの定義を見てみよう。
+```C
+#if SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_1)
+#  define _IO_fwide_maybe_incompatible \
+  (__glibc_unlikely (&_IO_stdin_used == NULL))
+extern const int _IO_stdin_used;
+weak_extern (_IO_stdin_used);
+#else
+# define _IO_fwide_maybe_incompatible (0)
+#endif
+/* A special optimized version of the function above.  It optimizes the
+   case of initializing an unoriented byte stream.  */
+#define _IO_fwide(__fp, __mode) \
+  ({ int __result = (__mode);                                                      \
+     if (__result < 0 && ! _IO_fwide_maybe_incompatible)                      \
+       {                                                                      \
+         if ((__fp)->_mode == 0)                                              \
+           /* We know that all we have to do is to set the flag.  */              \
+           (__fp)->_mode = -1;                                                      \
+         __result = (__fp)->_mode;                                              \
+       }                                                                      \
+     else if (__builtin_constant_p (__mode) && (__mode) == 0)                      \
+       __result = _IO_fwide_maybe_incompatible ? -1 : (__fp)->_mode;              \
+     else                                                                      \
+       __result = _IO_fwide (__fp, __result);                                      \
+     __result; })
+```
