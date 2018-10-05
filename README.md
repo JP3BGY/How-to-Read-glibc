@@ -1,4 +1,4 @@
-# How-to-Read-glibc
+# How to Read glibc
 
 C言語初心者向けにputs()関数のリーディングを通してソースの読み方を説明する。
 使用したソースと環境は以下の通り。
