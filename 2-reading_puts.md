@@ -268,7 +268,9 @@ _IO_puts (const char *str)
 ここでは具体的な言及は避けるが、実行ファイルにも新旧や種類や変更があっておそらくこれは昔の実行ファイルを使う場合に必要になるものなのだと推測できる。
 実際GDBでステップ実行をすると＿IO_vtable_offsetの部分はコンパイル時に評価がfalseであると予め計算されるため実行ファイル上ではなかったもの扱いになっている。
 
-次に3番だが、ここは2番とは違ってちゃんと使われているので、まずここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
+次に3番だが、fwideについては[man page](https://linuxjm.osdn.jp/html/LDP_man-pages/man3/fwide.3.html)が存在しておりおそらく同じ関数だと予測できる。ソースを確認してもよいがソースを読むときに重要なのは必要のないところは読まないことなのでここではこれ以上の言及はしない。この部分は要はstdoutをバイトストリームに変更するだけである。
+
+4番についてだが、デバッガで確認すればわかるがここが出力を行っている関数である。そのため、まずここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
 ```C
 struct _IO_FILE
 {
@@ -333,30 +335,65 @@ struct _IO_FILE_complete
 
 で、このデータ構造で気になるのが```_IO_USE_OLD_IO_FILE```だが基本OLDと書かれているものは互換性のために残ってるだけで今のPCで使われることはないと推測して良い。なのでこの部分はないものとして考える。ほかはとりあえずは今はコメントと単語から推測できる程度がわかっていれば問題ない。
 
-話を戻して3番についてだが、とりあえず_IO_fwideの定義を見てみよう。
-```C
-#if SHLIB_COMPAT (libc, GLIBC_2_0, GLIBC_2_1)
-#  define _IO_fwide_maybe_incompatible \
-  (__glibc_unlikely (&_IO_stdin_used == NULL))
-extern const int _IO_stdin_used;
-weak_extern (_IO_stdin_used);
-#else
-# define _IO_fwide_maybe_incompatible (0)
-#endif
-/* A special optimized version of the function above.  It optimizes the
-   case of initializing an unoriented byte stream.  */
-#define _IO_fwide(__fp, __mode) \
-  ({ int __result = (__mode);                                                      \
-     if (__result < 0 && ! _IO_fwide_maybe_incompatible)                      \
-       {                                                                      \
-         if ((__fp)->_mode == 0)                                              \
-           /* We know that all we have to do is to set the flag.  */              \
-           (__fp)->_mode = -1;                                                      \
-         __result = (__fp)->_mode;                                              \
-       }                                                                      \
-     else if (__builtin_constant_p (__mode) && (__mode) == 0)                      \
-       __result = _IO_fwide_maybe_incompatible ? -1 : (__fp)->_mode;              \
-     else                                                                      \
-       __result = _IO_fwide (__fp, __result);                                      \
-     __result; })
+
+では話を戻して4番を見ていこう。まず下のソースを見てほしい、これは4の関数っぽいものの宣言部分とそれに関連したところだ。
+```c
+#define _IO_WIDE_JUMPS_FUNC(THIS) _IO_WIDE_JUMPS(THIS)
+#define JUMP_FIELD(TYPE, NAME) TYPE NAME
+#define JUMP0(FUNC, THIS) (_IO_JUMPS_FUNC(THIS)->FUNC) (THIS)
+#define JUMP1(FUNC, THIS, X1) (_IO_JUMPS_FUNC(THIS)->FUNC) (THIS, X1)
+#define JUMP2(FUNC, THIS, X1, X2) (_IO_JUMPS_FUNC(THIS)->FUNC) (THIS, X1, X2)
+#define JUMP3(FUNC, THIS, X1,X2,X3) (_IO_JUMPS_FUNC(THIS)->FUNC) (THIS, X1,X2, X3)
+#define JUMP_INIT(NAME, VALUE) VALUE
+#define JUMP_INIT_DUMMY JUMP_INIT(dummy, 0), JUMP_INIT (dummy2, 0)
+
+//CUT
+
+/* The 'xsputn' hook writes upto N characters from buffer DATA.
+   Returns EOF or the number of character actually written.
+   It matches the streambuf::xsputn virtual function. */
+typedef size_t (*_IO_xsputn_t) (FILE *FP, const void *DATA,
+                                    size_t N);
+#define _IO_XSPUTN(FP, DATA, N) JUMP2 (__xsputn, FP, DATA, N)
+
+//CUT
+
+struct _IO_jump_t
+{
+    JUMP_FIELD(size_t, __dummy);
+    JUMP_FIELD(size_t, __dummy2);
+    JUMP_FIELD(_IO_finish_t, __finish);
+    JUMP_FIELD(_IO_overflow_t, __overflow);
+    JUMP_FIELD(_IO_underflow_t, __underflow);
+    JUMP_FIELD(_IO_underflow_t, __uflow);
+    JUMP_FIELD(_IO_pbackfail_t, __pbackfail);
+    /* showmany */
+    JUMP_FIELD(_IO_xsputn_t, __xsputn);
+    JUMP_FIELD(_IO_xsgetn_t, __xsgetn);
+    JUMP_FIELD(_IO_seekoff_t, __seekoff);
+    JUMP_FIELD(_IO_seekpos_t, __seekpos);
+    JUMP_FIELD(_IO_setbuf_t, __setbuf);
+    JUMP_FIELD(_IO_sync_t, __sync);
+    JUMP_FIELD(_IO_doallocate_t, __doallocate);
+    JUMP_FIELD(_IO_read_t, __read);
+    JUMP_FIELD(_IO_write_t, __write);
+    JUMP_FIELD(_IO_seek_t, __seek);
+    JUMP_FIELD(_IO_close_t, __close);
+    JUMP_FIELD(_IO_stat_t, __stat);
+    JUMP_FIELD(_IO_showmanyc_t, __showmanyc);
+    JUMP_FIELD(_IO_imbue_t, __imbue);
+};
+/* We always allocate an extra word following an _IO_FILE.
+   This contains a pointer to the function jump table used.
+   This is for compatibility with C++ streambuf; the word can
+   be used to smash to a pointer to a virtual function table. */
+struct _IO_FILE_plus
+{
+  FILE file;
+  const struct _IO_jump_t *vtable;
+};
+
+//CUT
+
+#define _IO_sputn(__fp, __s, __n) _IO_XSPUTN (__fp, __s, __n)
 ```
