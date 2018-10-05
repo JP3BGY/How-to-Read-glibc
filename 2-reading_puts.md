@@ -7,18 +7,28 @@ puts()を読み始めるためにはまずputs()がどこで宣言されてい�
 * デバッグシンボルから場所を特定する
 
 [読み始める前に](1-introduction.md)でインストールしたデバッグシンボルを用いてソースがどこにあるのかを特定する。まず、以下のようなプログラムを書きコンパイルをしよう。ここではプログラム本体のデバッグを目的とはしていないので```-g```オプションを付ける必要はない。
+<details>
+  <summary>Sample Program</summary>
+  
 ```C
 #include <stdio.h>
 int main(){
   puts("Hello!!");
 }
 ```
+
+</details>
 その後、GDBでプログラムを起動し、以下のようなコマンドを実行する。
+<details>
+  <summary>Sample gdb commands</summary>
+  
 ```gdb
 tui enable
 b puts
 r
 ```
+
+</details>
 そうすると、puts()にはいったところでプログラムが止まるのでそのファイル名を確認してソースコードに対して```find ./ -name filename.c```などで検索をかけたり、そのままGDBで読み進めれば良いと思う。
 デバッガを使う利点は関数がシステムや設定によって宣言場所が違う場合に、自分の環境ではどれが使われているのかがすぐに分かるという点である。また、デバッグシンボルが使えるものならばすべてのソフトウェアで対応できる手法なので最初はこれで見つけ出すのが一番早いであろう。
 難点としてはデバッグシンボルがない、または何らかの理由でデバッグすることができない場合は使えないというところであろう。しかし、今現在UbuntuとFedoraではパッケージマネージャから多くのデバッグシンボルをインストールできるので、その範囲内のソフトウェアなら特に問題とはならない。
@@ -34,6 +44,9 @@ r
 
 まず、glibcのトップのファイル構造を見てみよう。以下のリンクか自身がダウンロードしたディレクトリで```ls```を実行してみよう。以下のような結果になる。
 https://code.woboq.org/userspace/glibc/
+<details>
+  <summary>ls glibc</summary>
+  
 ```
 COPYING        NEWS         config.make.in  extra-lib.mk    inet               malloc         po              socket        test-skeleton.c
 COPYING.LIB    README       configure       gen-locales.mk  intl               manual         posix           soft-fp       time
@@ -47,12 +60,17 @@ Makefile       bits         dirent          iconv           localedata         n
 Makefile.in    catgets      dlfcn           iconvdata       login              nss            shlib-versions  sysvipc
 Makerules      config.h.in  elf             include         mach               o-iterator.mk  signal          termios
 ```
+
+</details>
 ここで注目してほしいのがファイルやディレクトリの名前である。見て分かる通りこれらの名前は変数名等と同じように意味を持つものになっている。
 例えば"assert"はC言語の標準ヘッダである"assert.h"関連の関数があるであろうと予測できるし、"time"も同様"time.h"関連であろうということが予測できる。
 また、わからないものは調べれば大抵はすぐに出てくる。例えば"elf"や"hurd"などは有名なのでこれらは問題なく出てくる。
 これで大まかにどこに何があるのかの見当がついた。
 
 それではここでputs()がどこにあるのかを予想してみよう。まず、puts()がおいてあるヘッダは"stdio.h"である。この名前から怪しそうなのは"stdio-common"と"libio"と"io"であろう。だが、現時点ではこれらの明確な差はわかっていないのでとりあえずそれぞれ何がはいっているのか```ls io libio stdio-common```で見てみよう。
+<details>
+  <summary>ls io libio stdio-common</summary>
+  
 ```
 io:
 Makefile                  fchdir.c      ftwtest-sh    lxstat64.c         posix_fallocate64.c  tst-copy_file_range-compat.c  tst-renameat.c
@@ -138,12 +156,17 @@ bug2.c                fscanf.c        psiginfo-data.h    scanf7.c        tst-fer
 bug20.c               ftrylockfile.c  psiginfo-define.h  scanf8.c        tst-ferror.input  tst-setvbuf1.c         vprintf.c
 bug21.c               funlockfile.c   psiginfo.c         scanf9.c        tst-fgets.c       tst-setvbuf1.expect    xbug.c
 ```
+
+</details>
 非常に多くのファイルが有って少し驚くかもしれないが大したことはない。よく見てみると標準関数の名前が並んでいることがわかる。```test-*```や```tst-*```はおそらくテストケースが入っているファイルであろう。ここまで来たらどこにあるかはすぐに分かると思われる。そう、```libio/ioputs.c```である。
 
 このようによく管理されているプロジェクトは楽に目的の部分にたどり着くことができるようにちゃんと作られているのだ。他のプロジェクトの場合も同様である。はじめは見てすぐにこのようなことを理解することは難しいかもしれないがめげずに経験を積むようにしてほしい。
 
 ## puts()を読んでみよう。
 ようやくここでputs()の関数を読むことにしよう。各自ナビゲーションシステムやデバッガでputs()を表示してほしいが一応ioputs.cの全文をここにも貼ることにする。
+<details>
+  <summary>glibc/libio/ioputs.c</summary>
+  
 ```C
 /* Copyright (C) 1993-2018 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -194,18 +217,29 @@ _IO_puts (const char *str)
 
 weak_alias (_IO_puts, puts)
 ```
+
+</details>
 まずはじめに気になるのが```weak_alias (_IO_puts, puts)```であろう。そこでweak_aliasの定義を確認してみよう。
+<details>
+  <summary>glibc/include/libc-symbols.h</summary>
+  
 ```C
 # define weak_alias(name, aliasname) _weak_alias (name, aliasname)
 # define _weak_alias(name, aliasname) \
   extern __typeof (name) aliasname __attribute__ ((weak, alias (#name)));
 ```
+
+</details>
 いきなり訳がわからないとは思うのでここは少しわかりやすく分け目を大きくしてみようと思う。
+<details>
+  <summary>glibc/include/libc-symbols.h modified</summary>
+  
 ```C
 # define weak_alias(name, aliasname) _weak_alias (name, aliasname)
 # define _weak_alias(name, aliasname) \
   extern       __typeof (name)         aliasname         __attribute__ ((weak, alias (#name)));
 ```
+</details>
 これで少しはわかりやすくなったかと思う。
 ひとつずつ見ていこう、まずexternは外部に宣言がされているという意味の修飾子だ。これは、関数の場合は意味をなさないが変数の場合は存在のみを定義して実態を作らないという意味を持つ。が、ここでは```aliasname```は```puts```、即ち関数なのでとりあえず無視しよう。
 次に```__typeof (name)```である。これは[typeof](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)演算子であろうというのは簡単に予測できる。
@@ -217,6 +251,9 @@ extern __typeof (_IO_puts) puts __attribute__ ((weak, alias ("_IO_puts")));
 こうして、putsは_IO_putsのaliasであると定義されるわけだ。
 
 putsの謎が解けたところでその中身を読んでいこう。
+<details>
+  <summary>glibc/libio/ioputs.c</summmary>
+  
 ```C
 int
 _IO_puts (const char *str)
@@ -235,12 +272,16 @@ _IO_puts (const char *str)
   return result;
 }
 ```
+</details>
 読みやすさのために番号を振った。
 
 一番最初につまずくのは1番の```_IO_acquire_lock``` ```_IO_release_lock```だと思う。これはマルチスレッドプログラミングで使われる[lock free](https://ja.wikipedia.org/wiki/Lock-free%E3%81%A8Wait-free%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0)と呼ばれるものだ。かいつまんで話すとマルチスレッドプログラミングをするときに同じリソースに対して違うスレッドが同時に使うという状況が起こることがある。それを単純に許してしまうと同時に別の値が上書きされたりして、結果挙動がおかしくなることがある。それを防ぐためにあるスレッドが使っている限りは別のスレッドからは使えないように鍵をかけ、使い終わったらそれを開放する、という意味でロックフリーというわけだ。この部分はこれ以上深くは追わないこととする。理由はwoboq等でマクロの展開結果を見ればわかるがとんでもない量のコードになっているからだ。ここはputs()の核心ではないのであまり時間をかけないためにとばすことにする。
 
 次に2番の部分だが、結論からするとこの部分では何もしない、何もおこらないことに普通はなっている。
 どういうことか定義部分を見てみよう。
+<details>
+  <summary>glibc/libio/libioP.h</summary>
+  
 ```C
 /* Setting this macro to 1 enables the use of the _vtable_offset bias
    in _IO_JUMPS_FUNCS, below.  This is only needed for new-format
@@ -264,6 +305,7 @@ _IO_puts (const char *str)
 # define _IO_vtable_offset(THIS) 0
 #endif
 ```
+</details>
 注目してほしいのが```_IO_JUMPS_OFFSET```の定義をしている上の部分のコメントである。単純に言えばold binary用だから今は使ってないということだ。
 ここでは具体的な言及は避けるが、実行ファイルにも新旧や種類や変更があっておそらくこれは昔の実行ファイルを使う場合に必要になるものなのだと推測できる。
 実際GDBでステップ実行をすると＿IO_vtable_offsetの部分はコンパイル時に評価がfalseであると予め計算されるため実行ファイル上ではなかったもの扱いになっている。
@@ -271,6 +313,9 @@ _IO_puts (const char *str)
 次に3番だが、fwideについては[man page](https://linuxjm.osdn.jp/html/LDP_man-pages/man3/fwide.3.html)が存在しておりおそらく同じ関数だと予測できる。ソースを確認してもよいがソースを読むときに重要なのは必要のないところは読まないことなのでここではこれ以上の言及はしない。この部分は要はstdoutをバイトストリームに変更するだけである。
 
 4番についてだが、デバッガで確認すればわかるがここが出力を行っている関数である。そのため、まずここを読む前に_IO_stdoutの型を調べようと思う。ソースを読む上ではロジックを読むのも重要であるがそれ以上に型、特にstruct等ユーザーが定義した型の情報が大事になる。なぜなら、処理というのは型の意味する情報があって初めて作られるからだ。では、早速見てみよう。
+<details>
+  <summary>glibc/libio/bits/types/struct_FILE.h</summary>
+  
 ```C
 struct _IO_FILE
 {
@@ -316,6 +361,7 @@ struct _IO_FILE_complete
   char _unused2[15 * sizeof (int) - 4 * sizeof (void *) - sizeof (size_t)];
 };
 ```
+</details>
 これまた長くて大変だが、すべてを理解する必要はない。とりあえずは名前から推測してみよう。その前にあまり知らないであろう単語の説明をする。
 * offset
 
@@ -337,6 +383,9 @@ struct _IO_FILE_complete
 
 
 では話を戻して4番を見ていこう。まず下のソースを見てほしい、これは4の関数っぽいものの宣言部分とそれに関連したところだ。
+<details>
+  <summary>glibc/libio/libioP.h</summary>
+
 ```c
 #define _IO_WIDE_JUMPS_FUNC(THIS) _IO_WIDE_JUMPS(THIS)
 #define JUMP_FIELD(TYPE, NAME) TYPE NAME
@@ -397,3 +446,38 @@ struct _IO_FILE_plus
 
 #define _IO_sputn(__fp, __s, __n) _IO_XSPUTN (__fp, __s, __n)
 ```
+
+</details>
+ここのあたりは少し技巧的である。何がしたくてこんな長ったらしくなっているかというとC++との互換性のためにC++のクラスと同じことを実現しようとしているのだ。
+
+ここで少しC++のクラスの内部の挙動について解説すると、ほぼ上のコードと同じなのだが各クラスごとにベクターテーブルと呼ばれるメソッドのポインターをまとめた物がある。このベクターテーブルは継承関係にあるものは同じオフセットに同型同名(オーバーライドされていることもあるので同じメソッドとは限らない)のメソッドが存在して、これによってオーバーライドを実現している。
+また、メソッドの呼び出し時にはベクターテーブルを参照して呼び出すわけだがメソッドの引数には隠し引数としてオブジェクトへのポインタが渡されている。このポインタを使ってオブジェクトのフィールドにアクセスするわけだ。
+
+上のコードはつまりそれと同じ挙動をするプログラムを作成している。まずFILE構造体を拡張する形で_IO_FILE_plus構造体を作成している。stdin等をじっくり読んでいる人はすでに知っていると思うがstdin,out,errはすべて_IO_FILE_plus構造体で宣言されている。以下がその部分である。
+<details>
+  <summary>glibc/libio/stdfiles.c</summary>
+  
+```c
+#ifdef _IO_MTSAFE_IO
+# define DEF_STDFILE(NAME, FD, CHAIN, FLAGS) \
+  static _IO_lock_t _IO_stdfile_##FD##_lock = _IO_lock_initializer; \
+  static struct _IO_wide_data _IO_wide_data_##FD \
+    = { ._wide_vtable = &_IO_wfile_jumps }; \
+  struct _IO_FILE_plus NAME \
+    = {FILEBUF_LITERAL(CHAIN, FLAGS, FD, &_IO_wide_data_##FD), \
+       &_IO_file_jumps};
+#else
+# define DEF_STDFILE(NAME, FD, CHAIN, FLAGS) \
+  static struct _IO_wide_data _IO_wide_data_##FD \
+    = { ._wide_vtable = &_IO_wfile_jumps }; \
+  struct _IO_FILE_plus NAME \
+    = {FILEBUF_LITERAL(CHAIN, FLAGS, FD, &_IO_wide_data_##FD), \
+       &_IO_file_jumps};
+#endif
+
+DEF_STDFILE(_IO_2_1_stdin_, 0, 0, _IO_NO_WRITES);
+DEF_STDFILE(_IO_2_1_stdout_, 1, &_IO_2_1_stdin_, _IO_NO_READS);
+DEF_STDFILE(_IO_2_1_stderr_, 2, &_IO_2_1_stdout_, _IO_NO_READS+_IO_UNBUFFERED);
+```
+</details>
+非常にややこしいがこの部分は今は特別読み込む必要はないのでwoboqやgdbで展開結果だけを表示させれば良いと思う。とりあえず_IO_FILE_plus構造体で宣言されていることを知っていることが重要である。
