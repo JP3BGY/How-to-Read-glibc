@@ -27,8 +27,8 @@ tui enable
 b puts
 r
 ```
-
 </details>
+
 そうすると、puts()にはいったところでプログラムが止まるのでそのファイル名を確認してソースコードに対して```find ./ -name filename.c```などで検索をかけたり、そのままGDBで読み進めれば良いと思う。
 デバッガを使う利点は関数がシステムや設定によって宣言場所が違う場合に、自分の環境ではどれが使われているのかがすぐに分かるという点である。また、デバッグシンボルが使えるものならばすべてのソフトウェアで対応できる手法なので最初はこれで見つけ出すのが一番早いであろう。
 難点としてはデバッグシンボルがない、または何らかの理由でデバッグすることができない場合は使えないというところであろう。しかし、今現在UbuntuとFedoraではパッケージマネージャから多くのデバッグシンボルをインストールできるので、その範囲内のソフトウェアなら特に問題とはならない。
@@ -60,14 +60,15 @@ Makefile       bits         dirent          iconv           localedata         n
 Makefile.in    catgets      dlfcn           iconvdata       login              nss            shlib-versions  sysvipc
 Makerules      config.h.in  elf             include         mach               o-iterator.mk  signal          termios
 ```
-
 </details>
+
 ここで注目してほしいのがファイルやディレクトリの名前である。見て分かる通りこれらの名前は変数名等と同じように意味を持つものになっている。
 例えば"assert"はC言語の標準ヘッダである"assert.h"関連の関数があるであろうと予測できるし、"time"も同様"time.h"関連であろうということが予測できる。
 また、わからないものは調べれば大抵はすぐに出てくる。例えば"elf"や"hurd"などは有名なのでこれらは問題なく出てくる。
 これで大まかにどこに何があるのかの見当がついた。
 
 それではここでputs()がどこにあるのかを予想してみよう。まず、puts()がおいてあるヘッダは"stdio.h"である。この名前から怪しそうなのは"stdio-common"と"libio"と"io"であろう。だが、現時点ではこれらの明確な差はわかっていないのでとりあえずそれぞれ何がはいっているのか```ls io libio stdio-common```で見てみよう。
+
 <details>
   <summary>ls io libio stdio-common</summary>
   
@@ -156,8 +157,8 @@ bug2.c                fscanf.c        psiginfo-data.h    scanf7.c        tst-fer
 bug20.c               ftrylockfile.c  psiginfo-define.h  scanf8.c        tst-ferror.input  tst-setvbuf1.c         vprintf.c
 bug21.c               funlockfile.c   psiginfo.c         scanf9.c        tst-fgets.c       tst-setvbuf1.expect    xbug.c
 ```
-
 </details>
+
 非常に多くのファイルが有って少し驚くかもしれないが大したことはない。よく見てみると標準関数の名前が並んでいることがわかる。```test-*```や```tst-*```はおそらくテストケースが入っているファイルであろう。ここまで来たらどこにあるかはすぐに分かると思われる。そう、```libio/ioputs.c```である。
 
 このようによく管理されているプロジェクトは楽に目的の部分にたどり着くことができるようにちゃんと作られているのだ。他のプロジェクトの場合も同様である。はじめは見てすぐにこのようなことを理解することは難しいかもしれないがめげずに経験を積むようにしてほしい。
@@ -217,8 +218,8 @@ _IO_puts (const char *str)
 
 weak_alias (_IO_puts, puts)
 ```
-
 </details>
+
 まずはじめに気になるのが```weak_alias (_IO_puts, puts)```であろう。そこでweak_aliasの定義を確認してみよう。
 <details>
   <summary>glibc/include/libc-symbols.h</summary>
@@ -228,8 +229,8 @@ weak_alias (_IO_puts, puts)
 # define _weak_alias(name, aliasname) \
   extern __typeof (name) aliasname __attribute__ ((weak, alias (#name)));
 ```
-
 </details>
+
 いきなり訳がわからないとは思うのでここは少しわかりやすく分け目を大きくしてみようと思う。
 <details>
   <summary>glibc/include/libc-symbols.h modified</summary>
@@ -240,10 +241,11 @@ weak_alias (_IO_puts, puts)
   extern       __typeof (name)         aliasname         __attribute__ ((weak, alias (#name)));
 ```
 </details>
+
 これで少しはわかりやすくなったかと思う。
-ひとつずつ見ていこう、まずexternは外部に宣言がされているという意味の修飾子だ。これは、関数の場合は意味をなさないが変数の場合は存在のみを定義して実態を作らないという意味を持つ。が、ここでは```aliasname```は```puts```、即ち関数なのでとりあえず無視しよう。
-次に```__typeof (name)```である。これは[typeof](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)演算子であろうというのは簡単に予測できる。
-最後が```__attribute__ ((weak, alias (#name)));```である。これは"alias gcc extension"等で検索すれば出てくるgccの拡張機能である[alias](https://gcc.gnu.org/onlinedocs/gcc-4.7.2/gcc/Function-Attributes.html)だ。簡単に言えば別名というわけだ。weakとあるのは同ページの下の方に記述があるが別で宣言があったら上書きできるという意味だ。つまりputs()という名前の別の関数をプログラムで定義しても問題なくコンパイルされ、かつputs()の呼び出し時はその新しく書いた方が使われるようになるわけだ。C言語では普通名前が衝突するとエラーが出るので普通の挙動ではないことがわかるだろう。``#name``の部分はその部分をそのまま文字列、即ち```"name"```にするという意味だ。こうする理由は上のリンクをよく見ればわかるが__attribute__に使う引数が文字列である必要があるからだ。
+ひとつずつ見ていこう、まずexternは外部に宣言がされているという意味の修飾子だ。これは、関数の場合は意味をなさないが変数の場合は存在のみを定義して実態を作らないという意味を持つ。が、ここでは ```aliasname``` は ```puts``` 、即ち関数なのでとりあえず無視しよう。
+次に```__typeof (name)```である。これは [typeof](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html) 演算子であろうというのは簡単に予測できる。
+最後が ```__attribute__ ((weak, alias (#name)));``` である。これは"alias gcc extension"等で検索すれば出てくるgccの拡張機能である [alias](https://gcc.gnu.org/onlinedocs/gcc-4.7.2/gcc/Function-Attributes.html) だ。簡単に言えば別名というわけだ。weakとあるのは同ページの下の方に記述があるが別で宣言があったら上書きできるという意味だ。つまりputs()という名前の別の関数をプログラムで定義しても問題なくコンパイルされ、かつputs()の呼び出し時はその新しく書いた方が使われるようになるわけだ。C言語では普通名前が衝突するとエラーが出るので普通の挙動ではないことがわかるだろう。```#name```  の部分はその部分をそのまま文字列、即ち ```"name"``` にするという意味だ。こうする理由は上のリンクをよく見ればわかるが__attribute__に使う引数が文字列である必要があるからだ。
 結果として```weak_alias(_IO_puts,puts)```は以下のように展開される。
 ```C
 extern __typeof (_IO_puts) puts __attribute__ ((weak, alias ("_IO_puts")));
@@ -273,9 +275,10 @@ _IO_puts (const char *str)
 }
 ```
 </details>
+
 読みやすさのために番号を振った。
 
-一番最初につまずくのは1番の```_IO_acquire_lock``` ```_IO_release_lock```だと思う。これはマルチスレッドプログラミングで使われる[lock free](https://ja.wikipedia.org/wiki/Lock-free%E3%81%A8Wait-free%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0)と呼ばれるものだ。かいつまんで話すとマルチスレッドプログラミングをするときに同じリソースに対して違うスレッドが同時に使うという状況が起こることがある。それを単純に許してしまうと同時に別の値が上書きされたりして、結果挙動がおかしくなることがある。それを防ぐためにあるスレッドが使っている限りは別のスレッドからは使えないように鍵をかけ、使い終わったらそれを開放する、という意味でロックフリーというわけだ。この部分はこれ以上深くは追わないこととする。理由はwoboq等でマクロの展開結果を見ればわかるがとんでもない量のコードになっているからだ。ここはputs()の核心ではないのであまり時間をかけないためにとばすことにする。
+一番最初につまずくのは1番の ```_IO_acquire_lock``` ```_IO_release_lock``` だと思う。これはマルチスレッドプログラミングで使われる[lock free](https://ja.wikipedia.org/wiki/Lock-free%E3%81%A8Wait-free%E3%82%A2%E3%83%AB%E3%82%B4%E3%83%AA%E3%82%BA%E3%83%A0)と呼ばれるものだ。かいつまんで話すとマルチスレッドプログラミングをするときに同じリソースに対して違うスレッドが同時に使うという状況が起こることがある。それを単純に許してしまうと同時に別の値が上書きされたりして、結果挙動がおかしくなることがある。それを防ぐためにあるスレッドが使っている限りは別のスレッドからは使えないように鍵をかけ、使い終わったらそれを開放する、という意味でロックフリーというわけだ。この部分はこれ以上深くは追わないこととする。理由はwoboq等でマクロの展開結果を見ればわかるがとんでもない量のコードになっているからだ。ここはputs()の核心ではないのであまり時間をかけないためにとばすことにする。
 
 次に2番の部分だが、結論からするとこの部分では何もしない、何もおこらないことに普通はなっている。
 どういうことか定義部分を見てみよう。
@@ -306,7 +309,8 @@ _IO_puts (const char *str)
 #endif
 ```
 </details>
-注目してほしいのが```_IO_JUMPS_OFFSET```の定義をしている上の部分のコメントである。単純に言えばold binary用だから今は使ってないということだ。
+
+注目してほしいのが ```_IO_JUMPS_OFFSET``` の定義をしている上の部分のコメントである。単純に言えばold binary用だから今は使ってないということだ。
 ここでは具体的な言及は避けるが、実行ファイルにも新旧や種類や変更があっておそらくこれは昔の実行ファイルを使う場合に必要になるものなのだと推測できる。
 実際GDBでステップ実行をすると＿IO_vtable_offsetの部分はコンパイル時に評価がfalseであると予め計算されるため実行ファイル上ではなかったもの扱いになっている。
 
@@ -362,6 +366,7 @@ struct _IO_FILE_complete
 };
 ```
 </details>
+
 これまた長くて大変だが、すべてを理解する必要はない。とりあえずは名前から推測してみよう。その前にあまり知らないであろう単語の説明をする。
 * offset
 
@@ -446,8 +451,8 @@ struct _IO_FILE_plus
 
 #define _IO_sputn(__fp, __s, __n) _IO_XSPUTN (__fp, __s, __n)
 ```
-
 </details>
+
 ここのあたりは少し技巧的である。何がしたくてこんな長ったらしくなっているかというとC++との互換性のためにC++のクラスと同じことを実現しようとしているのだ。
 
 ここで少しC++のクラスの内部の挙動について解説すると、ほぼ上のコードと同じなのだが各クラスごとにベクターテーブルと呼ばれるメソッドのポインターをまとめた物がある。このベクターテーブルは継承関係にあるものは同じオフセットに同型同名(オーバーライドされていることもあるので同じメソッドとは限らない)のメソッドが存在して、これによってオーバーライドを実現している。
@@ -480,4 +485,5 @@ DEF_STDFILE(_IO_2_1_stdout_, 1, &_IO_2_1_stdin_, _IO_NO_READS);
 DEF_STDFILE(_IO_2_1_stderr_, 2, &_IO_2_1_stdout_, _IO_NO_READS+_IO_UNBUFFERED);
 ```
 </details>
+
 非常にややこしいがこの部分は今は特別読み込む必要はないのでwoboqやgdbで展開結果だけを表示させれば良いと思う。とりあえず_IO_FILE_plus構造体で宣言されていることを知っていることが重要である。
