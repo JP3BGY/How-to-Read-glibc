@@ -253,10 +253,11 @@ extern __typeof (_IO_puts) puts __attribute__ ((weak, alias ("_IO_puts")));
 こうして、putsは_IO_putsのaliasであると定義されるわけだ。
 
 putsの謎が解けたところでその中身を読んでいこう。
+
 <details>
-  <summary>glibc/libio/ioputs.c</summmary>
+  <summary> glibc/libio/ioputs.c </summary>
   
-```C
+```c
 int
 _IO_puts (const char *str)
 {
