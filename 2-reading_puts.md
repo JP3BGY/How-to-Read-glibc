@@ -488,3 +488,4 @@ DEF_STDFILE(_IO_2_1_stderr_, 2, &_IO_2_1_stdout_, _IO_NO_READS+_IO_UNBUFFERED);
 </details>
 
 非常にややこしいがこの部分は今は特別読み込む必要はないのでwoboqやgdbで展開結果だけを表示させれば良いと思う。とりあえず_IO_FILE_plus構造体で宣言されていることを知っていることが重要である。
+そしてもう一つ重要なのが、structの各部分に何が代入されているかである。今回はとりわけvtablesに何が入っているかであろう。上の展開結果をwoboq等で調べれば分かるが```_IO_file_jumps```が代入されていることが分かる。
