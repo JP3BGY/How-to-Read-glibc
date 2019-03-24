@@ -35,6 +35,10 @@ vim likeなキーバインドのCUI FrontEnd。CUI&vimにこだわりがある�
 
 ただgrepとエディタを用いて読むのでは日が暮れてしまうのでここではソースコードナビゲーションシステムを用いてソースリーディングを行う。ここではwoboqかSourceWebかDXRを使っている前提で話を進めるがある程度自信とこだわりがあれば他のものを使っていても問題なく読み進められるだろう。
 
+* [Sourcegraph](https://sourcegraph.com/welcome)
+
+GitHubでインデクサができるようになるブラウザプラグイン。手軽に使えてLSPを使った対応言語も広い本格インデクサなのでお勧め。
+
 * [woboq codebrowser](https://github.com/woboq/woboq_codebrowser/)
 
 Clangを用いたコードナビゲーションシステム。プリプロセッサもある程度補足してくれるらしく関数をすぐに見つけることができる。
