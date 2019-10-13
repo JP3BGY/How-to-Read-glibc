@@ -375,7 +375,7 @@ struct _IO_FILE_complete
 
 * vtable
 
-省略された部分を書くと"vector table"で、コンピュータ系では関数ポインタの列(構造体)という意味になる。
+省略された部分を書くと"virtual table"で、コンピュータ系では関数ポインタの列(構造体)という意味になる。
 
 * list 
 
